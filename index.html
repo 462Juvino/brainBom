@@ -280,6 +280,24 @@
         // 📡 FASE 4: CHAT, PRESENTES, RELÓGIO E ANTENA
         // ==========================================
         let espectadoresRecentes = {};
+        let avatar_cache = {}; // Memória para não sobrecarregar a API
+
+        // 🇷🇺 API RUSSA: Busca a foto oficial do TikTok se o TikFinity não enviar
+        async function obterAvatarRusso(nick, urlRecebida) {
+            if (avatar_cache[nick] && !avatar_cache[nick].includes("dicebear")) return avatar_cache[nick];
+            if (urlRecebida && !urlRecebida.includes("dicebear")) { avatar_cache[nick] = urlRecebida; return urlRecebida; }
+
+            try {
+                let res = await fetch(`https://www.tikwm.com/api/user/info?unique_id=${nick}`);
+                let json = await res.json();
+                if (json && json.data && json.data.user && json.data.user.avatarLarger) {
+                    avatar_cache[nick] = json.data.user.avatarLarger; return avatar_cache[nick];
+                }
+            } catch(e) {}
+
+            let fallback = `https://api.dicebear.com/7.x/bottts/svg?seed=${nick}`;
+            avatar_cache[nick] = fallback; return fallback;
+        }
 
         function getPeriodos() {
             const d = new Date(); const dia = d.toISOString().split('T')[0]; const mes = dia.substring(0, 7);
@@ -316,20 +334,21 @@
             atualizarTela();
         }
 
-        function processarEventoDaAPI(d) {
+        async function processarEventoDaAPI(d) {
             let evento = d.event; let dados = d.data;
             if(!dados) return;
 
-            let nick = (dados.nickname || dados.uniqueId || "").trim();
+            let nick = (dados.nickname || dados.uniqueId || dados.userId || "").trim();
             if (!nick || nick.toLowerCase() === "none") return;
 
-            let avatar_url = dados.profilePictureUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${nick}`;
+            let raw_avatar = dados.profilePictureUrl || dados.avatar || dados.profilePicture;
+            let avatar_url = await obterAvatarRusso(nick, raw_avatar);
             espectadoresRecentes[nick] = avatar_url;
 
             if (!jogo.ativo && !jogo.iniciando) {
                 if ((evento === "join" || evento === "member") && jogo.config.entrar_por_join) adicionarJogador(nick, avatar_url);
                 if (evento === "like" && jogo.config.taps_entrada > 0) {
-                    let taps = parseInt(dados.likeCount || dados.likes || 1);
+                    let taps = parseInt(dados.likeCount || dados.likes || dados.count || 1);
                     if (!jogo.jogadores[nick]) adicionarJogador(nick, avatar_url);
                     jogo.jogadores[nick].taps += taps;
                     if (jogo.jogadores[nick].taps >= jogo.config.taps_entrada && jogo.jogadores[nick].chances === 0) {
@@ -339,7 +358,7 @@
             }
 
             if (evento === "gift") {
-                let pres = (dados.giftName || "").toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+                let pres = (dados.giftName || dados.name || "").toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
                 let cfg = jogo.config;
                 let c_ent = (cfg.presente_entrada || "").toLowerCase().replace(/[^a-z0-9]/g, "");
                 let c_dica = (cfg.presente_dica || "").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -429,7 +448,9 @@
                     if (cmd.action === 'update_bg') { atualizarConfig(); atualizarTela(); }
                     if (cmd.action === 'restaurar_fundo_vencedor' && jogo.ultimo_vencedor_avatar) { jogo.config.bg_type = 'image'; jogo.config.bg_value = jogo.ultimo_vencedor_avatar; atualizarTela(); }
                     if (cmd.action === 'start_game' && Object.keys(jogo.jogadores).length > 0 && !jogo.ativo && !jogo.iniciando) iniciarComContagem();
-                    if (cmd.action === 'add_player' && !jogo.jogadores[cmd.value]) adicionarJogador(cmd.value, `https://api.dicebear.com/7.x/bottts/svg?seed=${cmd.value}`);
+                    if (cmd.action === 'add_player' && !jogo.jogadores[cmd.value]) {
+                        obterAvatarRusso(cmd.value, null).then(img => adicionarJogador(cmd.value, img));
+                    }
                     if (cmd.action === 'remove_player' && jogo.jogadores[cmd.value]) { delete jogo.jogadores[cmd.value]; atualizarTela(); }
                 }
             }
@@ -467,6 +488,54 @@
             }
         }
         setInterval(verificarEConectar, 2000);
+
+        // ==========================================
+        // 🎨 BLOCO DE RESTAURAÇÃO: VISUAIS E ÁUDIO
+        // ==========================================
+        let audioCtx = null;
+        function playTick(freq) {
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioCtx.destination); osc.frequency.value = freq;
+                gain.gain.setValueAtTime(0.05, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+            } catch (e) { }
+        }
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60); const secs = seconds % 60;
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        let lastQtdJogadores = -1; let lastContainerWidth = -1; let lastContainerHeight = -1; let currentCardSize = 100;
+        function ajustarTamanhoPlateia(forcarCalculo = false) {
+            const container = document.getElementById('plateia'); const cards = container.querySelectorAll('.player-card');
+            if (cards.length === 0) return;
+            const cw = container.clientWidth; const ch = container.clientHeight;
+            if (!forcarCalculo && cards.length === lastQtdJogadores && cw === lastContainerWidth && ch === lastContainerHeight) {
+                cards.forEach(c => c.style.width = currentCardSize + 'px'); return;
+            }
+            lastQtdJogadores = cards.length; lastContainerWidth = cw; lastContainerHeight = ch; currentCardSize = 100;
+            cards.forEach(c => c.style.width = currentCardSize + 'px');
+            while (container.scrollHeight > container.clientHeight && currentCardSize > 40) {
+                currentCardSize -= 2; cards.forEach(c => c.style.width = currentCardSize + 'px');
+            }
+        }
+        window.addEventListener('resize', () => ajustarTamanhoPlateia(true));
+
+        function renderizarPlateia(jogadores) {
+            const container = document.getElementById('plateia');
+            container.innerHTML = '';
+            Object.keys(jogadores).forEach(nick => {
+                const p = jogadores[nick]; const div = document.createElement('div'); div.className = 'player-card';
+                if(p.chances <= 0) div.style.opacity = '0.4';
+                div.innerHTML = `<img src="${p.avatar}"><div style="background: rgba(0,0,0,0.85); color:#ff4757; font-weight:900; font-size:1.1rem; padding: 4px 10px; border-radius: 12px; margin-top: -15px; z-index: 2; border: 2px solid #ff4757; box-shadow: 0 0 10px rgba(255, 71, 87, 0.4); position: relative;">❤️ x${p.chances}</div><div class="player-name">${nick}</div>`;
+                container.appendChild(div);
+            });
+            ajustarTamanhoPlateia(false);
+        }
 
     </script>
 </body>
