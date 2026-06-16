@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel brainBom</title>
+    <style>
+        body { background-color: #0d1117; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; margin: 0; }
+        h2 { text-align: center; color: #3498db; margin-top: 0; margin-bottom: 5px; text-transform: uppercase; font-weight: 900; }
+        #licenca-info { text-align: center; font-size: 0.9em; color: #2ed573; font-weight: bold; margin-bottom: 10px; }
+
+        .box-resposta { background: #161b22; border: 2px solid #f39c12; border-radius: 8px; padding: 15px; text-align: center; margin-bottom: 20px; box-shadow: 0 0 10px rgba(243, 156, 18, 0.2); }
+        .box-resposta span.label { color: #c9d1d9; font-weight: bold; font-size: 0.9rem; text-transform: uppercase; }
+        .box-resposta span.palavra { display: block; color: #f39c12; font-size: 1.8rem; font-weight: 900; margin-top: 5px; letter-spacing: 2px; }
+
+        fieldset { border: 1px solid #30363d; border-radius: 8px; padding: 15px; margin-bottom: 15px; background: #12151b; }
+        legend { font-weight: bold; color: #3498db; padding: 0 5px; }
+        label { font-size: 0.85rem; color: #c9d1d9; font-weight: bold; }
+        input[type="text"], input[type="number"], select {
+            width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 10px;
+            background: #161b22; border: 1px solid #30363d; color: white;
+            border-radius: 5px; box-sizing: border-box; font-size: 0.9rem;
+        }
+        input[type="range"] { width: 100%; margin-top: 5px; margin-bottom: 15px; }
+        .btn-save { width: 100%; padding: 12px; background: #2ed573; color: black; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-bottom: 10px; transition: 0.2s; }
+        .btn-save:hover { background: #26b360; }
+        .btn-start { width: 100%; background: #f39c12; color: black; padding: 15px; font-weight: 900; font-size: 1.2rem; border: none; border-radius: 5px; cursor: pointer; transition: 0.2s; text-transform: uppercase; }
+        .btn-start:hover { background: #e67e22; }
+        .radio-group { display: flex; gap: 15px; margin-bottom: 10px; flex-wrap: wrap; }
+        .flex-row { display: flex; gap: 10px; align-items: center;}
+        .flex-col { flex: 1; }
+
+        .caixa-lista { margin-top: 10px; max-height: 150px; overflow-y: auto; background: #161b22; border: 1px solid #30363d; border-radius: 5px; padding: 5px; }
+        .player-item { display: flex; justify-content: space-between; align-items: center; padding: 5px; border-bottom: 1px solid #30363d; font-size: 0.85rem; }
+        .btn-remove { color: #ff4757; cursor: pointer; font-weight: bold; padding: 0 5px; border: 1px solid #ff4757; border-radius: 3px; }
+        .btn-add { color: #2ed573; cursor: pointer; font-weight: bold; padding: 0 5px; border: 1px solid #2ed573; border-radius: 3px; }
+
+        .btn-modo { flex: 1; padding: 10px; background: #222; color: #fff; border: 1px solid #555; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 0.8rem;}
+        .btn-modo.active { background: #3498db; color: white; border-color: #3498db; }
+
+        details { background: #161b22; border: 1px solid #30363d; border-radius: 5px; margin-bottom: 10px; padding: 10px; }
+        summary { font-weight: bold; color: #3498db; cursor: pointer; outline: none; list-style: none; }
+        summary::-webkit-details-marker { display: none; }
+        details p { font-size: 0.85rem; color: #ccc; line-height: 1.4; margin-top: 10px; margin-bottom: 0; }
+        ul.ajuda-lista { margin-top: 5px; margin-bottom: 0; padding-left: 20px; font-size: 0.85rem; color: #ccc; }
+        ul.ajuda-lista li { margin-bottom: 5px; }
+    </style>
+</head>
+<body>
+
+    <h2>🧠 brainBom</h2>
+
+    <div class="box-resposta">
+        <span class="label">Resposta Atual:</span>
+        <span class="palavra" id="host_resposta_atual">---</span>
+
+        <div style="margin-top: 15px; display: flex; gap: 10px; justify-content: center;">
+            <button onclick="navegarDica(-1)" style="padding: 5px 15px; background: #3498db; border: none; border-radius: 4px; color: white; cursor: pointer; font-weight: bold;">< Anterior</button>
+            <span id="indicador_dica" style="font-weight: bold; padding-top: 5px;">Dica: 1/1</span>
+            <button onclick="navegarDica(1)" style="padding: 5px 15px; background: #3498db; border: none; border-radius: 4px; color: white; cursor: pointer; font-weight: bold;">Próxima ></button>
+        </div>
+    </div>
+
+    <fieldset>
+        <legend>📺 Controle de Tela & Rankings</legend>
+        <div class="flex-row" style="margin-bottom: 10px;">
+            <div class="flex-col" style="flex: 2;">
+                <label>Filtrar Rankings Por:</label>
+                <select id="ranking_periodo" onchange="mudarPeriodoRanking()">
+                    <option value="diario">Apenas Hoje (Diário)</option>
+                    <option value="semanal">Esta Semana</option>
+                    <option value="mensal">Este Mês</option>
+                    <option value="geral">Histórico Geral (Sempre)</option>
+                </select>
+            </div>
+            <div class="flex-col">
+                <button onclick="limparRankingDia()" style="width: 100%; height: 35px; margin-top: 15px; background: transparent; border: 1px solid #ff4757; color: #ff4757; border-radius: 5px; cursor: pointer; font-weight: bold;">Limpar O DIA</button>
+            </div>
+        </div>
+
+        <div class="flex-row" style="flex-wrap: wrap; gap: 5px;">
+            <button class="btn-modo active" id="btn_game" onclick="mudarEcra('game')">Plateia (Jogo)</button>
+            <button class="btn-modo" id="btn_rank_pontos" onclick="mudarEcra('rank_pontos')">Top Pontos</button>
+            <button class="btn-modo" id="btn_rank_acertos" onclick="mudarEcra('rank_acertos')">Top Acertos</button>
+        </div>
+    </fieldset>
+
+    <fieldset>
+        <legend>📖 Como Funciona</legend>
+        <details>
+            <summary>🕹️ Regras p/ o Público</summary>
+            <p>
+                <strong>Entrar no Jogo:</strong> Mande o presente definido, dê taps na tela ou entre na live.<br>
+                <strong>Chances:</strong> Cada jogador entra com vidas/chances. Se errar a palavra, perde 1 chance. Se as chances zerarem, ele não pontua até comprar mais.<br>
+                <strong>Pontuação:</strong> Quando mais rápida a palavra for descoberta (menos dicas), mais pontos vale (5 a 1 ponto). Quem acertar também ganha +1 Vida grátis!<br>
+            </p>
+            <ul class="ajuda-lista">
+                <li>Presente de <b>Dica</b> abre a próxima pista na tela.</li>
+                <li>Presente de <b>Chances</b> dá +1 chance para quem enviou.</li>
+                <li>Presente de <b>Tempo</b> aumenta os segundos da partida.</li>
+            </ul>
+        </details>
+    </fieldset>
+
+    <fieldset>
+        <legend>Gerenciar Jogadores</legend>
+        <label style="color: #f39c12;">Espectadores Recentes (Clique [+] para adicionar):</label>
+        <div id="lista-espectadores" class="caixa-lista" style="margin-bottom: 15px;"></div>
+
+        <label style="color: #2ed573;">Na Plateia (Clique [X] para remover):</label>
+        <div class="flex-row">
+            <input type="text" id="manual_nick" placeholder="Ou digite o Nick manualmente" style="margin-bottom:0">
+            <button onclick="adicionarManual()" style="background: #2ed573; color: black; border: none; padding: 0 20px; border-radius: 5px; font-weight: bold; cursor: pointer;">[+]</button>
+        </div>
+        <div id="lista-jogadores-painel" class="caixa-lista"></div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Status de Conexão com a Live</legend>
+
+        <div style="display: flex; justify-content: space-between; margin-bottom: 15px; font-weight: bold; background: #161b22; padding: 10px; border-radius: 5px; border: 1px solid #30363d;">
+            <span>TikFinity: <span id="status_tikfinity" style="color: #ff4757;">🔴 Desconectado</span></span>
+            <span>TikTok Direto: <span id="status_tiktok" style="color: #ff4757;">🔴 Desconectado</span></span>
+        </div>
+
+
+    </fieldset>
+
+    <fieldset>
+        <legend>Visuais e Áudio</legend>
+
+        <button onclick="restaurarFundoVencedor()" style="width: 100%; background: #9b59b6; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; margin-bottom: 15px; font-weight: bold; font-size: 0.9rem;">⭐ Usar Fundo do Último Acertador</button>
+        <div class="radio-group">
+            <label><input type="radio" name="bg_type" value="color" checked onchange="mudarFundoTipo()"> Cor Sólida</label>
+            <label><input type="radio" name="bg_type" value="image" onchange="mudarFundoTipo()"> Imagem Manual</label>
+        </div>
+        <div id="div_bg_color">
+            <input type="color" id="bg_color" value="#1a1a24" style="width: 100%; height: 40px; padding: 0; cursor: pointer;" onchange="enviarFundoCor()">
+        </div>
+        <div id="div_bg_image" style="display: none;">
+            <input type="file" id="bg_image" accept="image/*" onchange="enviarFundoImagem(event)">
+        </div>
+
+        <label style="display: block; margin-top: 10px;">Volume de Efeitos: <span id="vol_val" style="color: #3498db;">8%</span></label>
+        <input type="range" id="volume_explosao" min="0" max="100" value="8" onchange="salvarConfig(true)" oninput="document.getElementById('vol_val').innerText = this.value + '%'">
+    </fieldset>
+
+    <fieldset>
+        <legend>Configurações da Partida</legend>
+        <label style="cursor: pointer; display: block; margin-bottom: 10px;">
+            <input type="checkbox" id="entrar_join" onchange="salvarConfig(true)"> Entrar na plateia apenas visitando a live
+        </label>
+        <div class="flex-row">
+            <div class="flex-col">
+                <label>Taps p/ entrar:</label>
+                <input type="number" id="taps_entrada" value="0" onchange="salvarConfig(true)">
+            </div>
+            <div class="flex-col">
+                <label>Chances/Vidas Iniciais:</label>
+                <input type="number" id="chances_iniciais" value="3">
+            </div>
+        </div>
+        <div class="flex-row">
+            <div class="flex-col">
+                <label>Tempo Global (Segundos):</label>
+                <input type="number" id="tempo_partida" value="300" title="Ex: 300 = 5 Minutos">
+            </div>
+            <div class="flex-col">
+                <label>Adicionar Tempo (Segundos):</label>
+                <input type="number" id="segundos_adicionais" value="30" title="Quantos segundos o presente de tempo adiciona">
+            </div>
+        </div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Sistema de Presentes</legend>
+        <div class="flex-row">
+            <div class="flex-col">
+                <label>Entrar na Plateia:</label>
+                <input type="text" id="pres_entrada" value="Rosa">
+            </div>
+            <div class="flex-col">
+                <label style="color: #f39c12;">Abrir Próxima Dica:</label>
+                <input type="text" id="pres_dica" value="Chapeu">
+            </div>
+        </div>
+
+        <div class="flex-row">
+            <div class="flex-col">
+                <label style="color: #ff4757;">Comprar +1 Chance:</label>
+                <input type="text" id="pres_chances" value="Coracao">
+            </div>
+            <div class="flex-col">
+                <label style="color: #2ed573;">Aumentar Tempo:</label>
+                <input type="text" id="pres_tempo" value="Relogio">
+            </div>
+        </div>
+    </fieldset>
+
+    <button class="btn-save" onclick="salvarConfig(false)">Salvar Configurações</button>
+    <button class="btn-start" onclick="iniciarJogo()">INICIAR PARTIDA</button>
+
+    <script>
+        let currentBgType = 'color';
+        let currentBgValue = '#1a1a24';
+
+        let nivelExibindo = 1;
+        let nivelMaximo = 1;
+        let configCarregada = false;
+
+        // 🧠 PONTE DE COMANDO: Envia ordens para o jogo ler
+        function sendCommand(action, value = null) {
+            localStorage.setItem('bombaCommand', JSON.stringify({ ts: Date.now(), action: action, value: value }));
+        }
+
+        // 📡 RADAR DO PAINEL: Atualiza a tela lendo o status do jogo
+        setInterval(() => {
+            let stateStr = localStorage.getItem('bombaState');
+            if (stateStr) {
+                let state = JSON.parse(stateStr);
+
+                const stTikfinity = document.getElementById('status_tikfinity');
+                if (state.conexao_tikfinity) {
+                    stTikfinity.innerHTML = "🟢 Conectado"; stTikfinity.style.color = "#2ed573";
+                } else {
+                    stTikfinity.innerHTML = "🔴 Desconectado"; stTikfinity.style.color = "#ff4757";
+                }
+
+                const stTiktok = document.getElementById('status_tiktok');
+                if (state.conexao_tiktok) {
+                    stTiktok.innerHTML = "🟢 Conectado"; stTiktok.style.color = "#2ed573";
+                } else {
+                    stTiktok.innerHTML = "🔴 Desconectado"; stTiktok.style.color = "#ff4757";
+                }
+
+                if (state.ativo && state.pergunta_atual) {
+                    document.getElementById('host_resposta_atual').innerText = state.pergunta_atual.resposta;
+                } else {
+                    document.getElementById('host_resposta_atual').innerText = "---";
+                }
+
+                nivelExibindo = state.nivel_dica_exibir || 1;
+                nivelMaximo = state.nivel_dica_max || 1;
+                document.getElementById('indicador_dica').innerText = `Dica: ${nivelExibindo}/${nivelMaximo}`;
+
+                renderizarListaRoda(state.jogadores);
+                renderizarEspectadores(state.espectadores, state.jogadores);
+            }
+
+            // Puxa as configurações se a tela do host foi atualizada
+            if (!configCarregada) {
+                let cfgStr = localStorage.getItem('bombaConfig');
+                if (cfgStr) {
+                    let c = JSON.parse(cfgStr);
+
+                    document.getElementById('tempo_partida').value = c.tempo_partida || 300;
+                    document.getElementById('chances_iniciais').value = c.chances_iniciais || 3;
+                    document.getElementById('segundos_adicionais').value = c.segundos_adicionais || 30;
+                    document.getElementById('pres_entrada').value = c.presente_entrada || 'rosa';
+                    document.getElementById('pres_dica').value = c.presente_dica || 'chapeu';
+                    document.getElementById('pres_chances').value = c.presente_chances || 'coracao';
+                    document.getElementById('pres_tempo').value = c.presente_tempo || 'relogio';
+                    document.getElementById('entrar_join').checked = !!c.entrar_por_join;
+                    document.getElementById('taps_entrada').value = c.taps_entrada || 0;
+
+                    let vol = c.volume_explosao !== undefined ? c.volume_explosao * 100 : 8;
+                    document.getElementById('volume_explosao').value = vol;
+                    document.getElementById('vol_val').innerText = vol + '%';
+
+                    currentBgType = c.bg_type || 'color';
+                    currentBgValue = c.bg_value || '#1a1a24';
+
+                    let radioOption = document.querySelector(`input[name="bg_type"][value="${currentBgType}"]`);
+                    if(radioOption) radioOption.checked = true;
+
+                    if (currentBgType === 'color') {
+                        document.getElementById('bg_color').value = currentBgValue;
+                        document.getElementById('div_bg_color').style.display = 'block';
+                        document.getElementById('div_bg_image').style.display = 'none';
+                    } else {
+                        document.getElementById('div_bg_color').style.display = 'none';
+                        document.getElementById('div_bg_image').style.display = 'block';
+                    }
+                    configCarregada = true;
+                }
+            }
+        }, 500);
+
+        // --- FUNÇÕES DE COMANDO (Agora via LocalStorage) ---
+
+        function navegarDica(direcao) {
+            let alvo = nivelExibindo + direcao;
+            if (alvo >= 1 && alvo <= nivelMaximo) sendCommand('mudar_exibicao_dica', alvo);
+        }
+
+        function mudarEcra(modo) {
+            atualizarBotoesEcra(modo);
+            sendCommand('display_mode', modo);
+        }
+
+        function mudarPeriodoRanking() { sendCommand('display_periodo', document.getElementById('ranking_periodo').value); }
+        function limparRankingDia() { if(confirm("TEM CERTEZA que deseja apagar todos os pontos de HOJE?")) { sendCommand('limpar_diario', true); } }
+
+        function atualizarBotoesEcra(modoAtual) {
+            document.querySelectorAll('.btn-modo').forEach(btn => btn.classList.remove('active'));
+            const ativo = document.getElementById('btn_' + modoAtual);
+            if(ativo) ativo.classList.add('active');
+        }
+
+        function renderizarListaRoda(jogadoresDict) {
+            const container = document.getElementById('lista-jogadores-painel');
+            container.innerHTML = '';
+            const nicks = Object.keys(jogadoresDict || {});
+            if (nicks.length === 0) {
+                container.innerHTML = '<div style="text-align:center; color:#666; font-size:0.8rem; padding:10px;">Ninguém na plateia</div>';
+                return;
+            }
+            nicks.forEach(nick => {
+                const dados = jogadoresDict[nick];
+                let infoStr = `<span style="color:#ff4757; font-size:0.8rem; margin-left:5px; font-weight:bold;">❤️x${dados.chances || 0}</span>`;
+                infoStr += `<span style="color:#f39c12; font-size:0.8rem; margin-left:5px; font-weight:bold;">🏆${dados.pontos || 0}pts</span>`;
+                const div = document.createElement('div');
+                div.className = 'player-item';
+                div.innerHTML = `<span>${nick} ${infoStr}</span> <span class="btn-remove" onclick="removerManual('${nick}')">X</span>`;
+                container.appendChild(div);
+            });
+        }
+
+        function renderizarEspectadores(espectadores, jogadoresDict) {
+            const container = document.getElementById('lista-espectadores');
+            container.innerHTML = '';
+            const chaves = Object.keys(espectadores || {});
+            if (chaves.length === 0) {
+                container.innerHTML = '<div style="text-align:center; color:#666; font-size:0.8rem; padding:10px;">Nenhuma interação ainda</div>';
+                return;
+            }
+            chaves.forEach(nick => {
+                if(jogadoresDict && jogadoresDict[nick]) return;
+                const div = document.createElement('div');
+                div.className = 'player-item';
+                div.innerHTML = `<span><img src="${espectadores[nick]}" style="width:15px; border-radius:50%; vertical-align:middle; margin-right:5px;">${nick}</span> <span class="btn-add" onclick="adicionarDirecto('${nick}')">[+]</span>`;
+                container.appendChild(div);
+            });
+        }
+
+        function adicionarManual() {
+            const input = document.getElementById('manual_nick');
+            if (input.value.trim()) { sendCommand('add_player', input.value.trim()); input.value = ''; }
+        }
+        function adicionarDirecto(nick) { sendCommand('add_player', nick); }
+        function removerManual(nick) { sendCommand('remove_player', nick); }
+
+        function mudarFundoTipo() {
+            currentBgType = document.querySelector('input[name="bg_type"]:checked').value;
+            document.getElementById('div_bg_color').style.display = currentBgType === 'color' ? 'block' : 'none';
+            document.getElementById('div_bg_image').style.display = currentBgType === 'image' ? 'block' : 'none';
+            if (currentBgType === 'color') enviarFundoCor();
+            else salvarConfig(true);
+        }
+
+        function enviarFundoCor() {
+            currentBgValue = document.getElementById('bg_color').value;
+            salvarConfig(true);
+        }
+
+        function enviarFundoImagem(event) {
+            const file = event.target.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                currentBgValue = e.target.result;
+                salvarConfig(true);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function salvarConfig(silencioso = false) {
+            const config = {
+
+                tempo_partida: parseInt(document.getElementById('tempo_partida').value) || 300,
+                chances_iniciais: parseInt(document.getElementById('chances_iniciais').value) || 3,
+                segundos_adicionais: parseInt(document.getElementById('segundos_adicionais').value) || 30,
+                presente_entrada: document.getElementById('pres_entrada').value,
+                presente_dica: document.getElementById('pres_dica').value,
+                presente_chances: document.getElementById('pres_chances').value,
+                presente_tempo: document.getElementById('pres_tempo').value,
+                entrar_por_join: document.getElementById('entrar_join').checked,
+                taps_entrada: parseInt(document.getElementById('taps_entrada').value) || 0,
+                volume_explosao: parseInt(document.getElementById('volume_explosao').value) / 100.0,
+                bg_type: currentBgType, bg_value: currentBgValue
+            };
+
+            localStorage.setItem('bombaConfig', JSON.stringify(config));
+            sendCommand('update_bg', true);
+            if (!silencioso) alert("Configurações salvas com sucesso!");
+        }
+
+        function restaurarFundoVencedor() { sendCommand('restaurar_fundo_vencedor', true); }
+        function iniciarJogo() { sendCommand('start_game', true); }
+    </script>
+</body>
+</html>
