@@ -108,7 +108,8 @@
 
     <script>
         // 🛡️ TRAVA RDM STUDIO: Verifica a licença no momento que o jogo abre
-        window.rdmUser = localStorage.getItem('rdm_user');
+        // Puxa primeiro a versão com PONTO, se não achar, usa a antiga por segurança
+        window.rdmUser = localStorage.getItem('rdm_user_tiktok') || localStorage.getItem('rdm_user');
         window.rdmPerfil = localStorage.getItem('rdm_perfil');
 
         if (!window.rdmUser || !window.rdmPerfil) {
@@ -461,32 +462,68 @@
             }));
         }, 1000);
 
-        // A Nossa Antena Híbrida!
-        let conexaoNuvemEstabelecida = false; let wsNuvem = null; let wsTikfinity = null; let lastTiktokUser = "";
+        // ==========================================
+        // 📡 PARTE 3: ANTENA HÍBRIDA INTELIGENTE (PRIORIDADE TIKFINITY)
+        // ==========================================
+        let conexaoNuvemEstabelecida = false;
+        let wsNuvem = null;
+        let wsTikfinity = null;
+        let lastTiktokUser = "";
 
         function conectarNuvem() {
             let targetUser = window.rdmUser;
             if (!targetUser) return;
+
             if (conexaoNuvemEstabelecida && lastTiktokUser === targetUser) return;
+
+            // ⚠️ A CORREÇÃO DE LOOP: Impede que o jogo cancele a conexão enquanto a torre acorda!
+            if (wsNuvem && wsNuvem.readyState === WebSocket.CONNECTING) return;
+
             if (wsNuvem) wsNuvem.close();
+
             lastTiktokUser = targetUser;
+            console.log(`☁️ Tentando Nuvem para: @${targetUser}... (Aguardando resposta)`);
+
             wsNuvem = new WebSocket("wss://torre-de-controle-rdm.onrender.com:443/");
-            wsNuvem.onopen = () => { conexaoNuvemEstabelecida = true; };
+
+            wsNuvem.onopen = () => {
+                conexaoNuvemEstabelecida = true;
+                console.log(`✅ NUVEM CONECTADA! Escutando: @${targetUser}`);
+
+                // ⚠️ A PROVA VISUAL NO BRAINBOM (Usamos o letreiro superior)
+                let tempTag = document.getElementById('dica-nivel').innerText;
+                document.getElementById('dica-nivel').innerText = `☁️ NUVEM LIGADA! (@${targetUser})`;
+                document.getElementById('dica-nivel').style.backgroundColor = "#2ed573";
+                setTimeout(() => {
+                    document.getElementById('dica-nivel').innerText = tempTag;
+                    document.getElementById('dica-nivel').style.backgroundColor = "#3498db";
+                }, 4000);
+            };
+
             wsNuvem.onmessage = (event) => { try { processarEventoDaAPI(JSON.parse(event.data)); } catch(e) {} };
+
             wsNuvem.onclose = () => { conexaoNuvemEstabelecida = false; wsNuvem = null; };
         }
 
         function verificarEConectar() {
             if (!wsTikfinity || wsTikfinity.readyState === WebSocket.CLOSED) {
                 wsTikfinity = new WebSocket("ws://127.0.0.1:21213/");
-                wsTikfinity.onopen = () => { if (wsNuvem) { wsNuvem.close(); wsNuvem = null; conexaoNuvemEstabelecida = false; } };
+
+                wsTikfinity.onopen = () => {
+                    console.log("✅ TikFinity Local Conectado!");
+                    if (wsNuvem) { wsNuvem.close(); wsNuvem = null; conexaoNuvemEstabelecida = false; }
+                };
+
                 wsTikfinity.onmessage = (event) => { try { processarEventoDaAPI(JSON.parse(event.data)); } catch(e) {} };
+
                 wsTikfinity.onerror = () => { conectarNuvem(); };
+
                 wsTikfinity.onclose = () => { wsTikfinity = null; };
             } else if (wsTikfinity.readyState === WebSocket.OPEN) {
                 if (wsNuvem) { wsNuvem.close(); wsNuvem = null; conexaoNuvemEstabelecida = false; }
             }
         }
+
         setInterval(verificarEConectar, 2000);
 
         // ==========================================
