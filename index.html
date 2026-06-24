@@ -117,6 +117,9 @@
             window.stop();
         }
 
+        // ⚡ DESPERTADOR DA API (Acorda o servidor Render imediatamente em background)
+        fetch("https://torre-de-controle-rdm.onrender.com/", { mode: 'no-cors' }).catch(() => {});
+
         // 🧠 CÉREBRO DO JOGO (Migrado do Python)
         let perguntas_db = [];
         let jogo = {
@@ -489,6 +492,9 @@
             wsNuvem.onopen = () => {
                 conexaoNuvemEstabelecida = true;
                 console.log(`✅ NUVEM CONECTADA! Escutando: @${targetUser}`);
+
+                // 🪄 A LINHA MÁGICA: Diz à API qual live espelhar!
+                wsNuvem.send(JSON.stringify({ action: "connect", tiktok_user: targetUser }));
 
                 // ⚠️ A PROVA VISUAL NO BRAINBOM (Usamos o letreiro superior)
                 let tempTag = document.getElementById('dica-nivel').innerText;
