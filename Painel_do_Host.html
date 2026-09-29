@@ -95,9 +95,10 @@
                 <strong>Pontuação:</strong> Quando mais rápida a palavra for descoberta (menos dicas), mais pontos vale (5 a 1 ponto). Quem acertar também ganha +1 Vida grátis!<br>
             </p>
             <ul class="ajuda-lista">
-                <li>Presente de <b>Dica</b> abre a próxima pista na tela.</li>
+                <li><b>Taps e Presentes</b> enchem a barra de progresso lateral. Ao atingir 100%, a próxima pista é liberada!</li>
                 <li>Presente de <b>Chances</b> dá +1 chance para quem enviou.</li>
                 <li>Presente de <b>Tempo</b> aumenta os segundos da partida.</li>
+                <li>Presente de <b>Pular Pergunta</b> troca a palavra atual por outra nova caso esteja muito difícil.</li>
             </ul>
         </details>
     </fieldset>
@@ -123,7 +124,15 @@
             <span>TikTok Direto: <span id="status_tiktok" style="color: #ff4757;">🔴 Desconectado</span></span>
         </div>
 
+    </fieldset>
 
+    <fieldset>
+        <legend>🔗 Link para OBS / TikTok Live Studio</legend>
+        <p style="font-size: 0.85rem; color: #ccc; margin-top: 0; margin-bottom: 5px;">Copie o link abaixo e cole no navegador do seu programa de live. Ele já contém a sua licença VIP!</p>
+        <div class="flex-row">
+            <input type="text" id="obs-link" readonly style="margin-bottom: 0; color: #f39c12; font-weight: bold; background: #222;">
+            <button onclick="copiarLinkOBS()" style="background: #3498db; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; font-weight: bold;">📋 COPIAR</button>
+        </div>
     </fieldset>
 
     <fieldset>
@@ -143,6 +152,9 @@
 
         <label style="display: block; margin-top: 10px;">Volume de Efeitos: <span id="vol_val" style="color: #3498db;">8%</span></label>
         <input type="range" id="volume_explosao" min="0" max="100" value="8" onchange="salvarConfig(true)" oninput="document.getElementById('vol_val').innerText = this.value + '%'">
+
+        <label style="display: block; margin-top: 10px;">Zoom Remoto do Jogo: <span id="zoom_val" style="color: #3498db;">100%</span></label>
+        <input type="range" id="zoom_jogo" min="40" max="200" value="100" onchange="salvarConfig(true)" oninput="document.getElementById('zoom_val').innerText = this.value + '%'">
     </fieldset>
 
     <fieldset>
@@ -157,7 +169,7 @@
             </div>
             <div class="flex-col">
                 <label>Chances/Vidas Iniciais:</label>
-                <input type="number" id="chances_iniciais" value="3">
+                <input type="number" id="chances_iniciais" value="100">
             </div>
         </div>
         <div class="flex-row">
@@ -180,19 +192,19 @@
                 <input type="text" id="pres_entrada" value="Rosa">
             </div>
             <div class="flex-col">
-                <label style="color: #f39c12;">Abrir Próxima Dica:</label>
-                <input type="text" id="pres_dica" value="Chapeu">
+                <label style="color: #ff4757;">Comprar +1 Chance:</label>
+                <input type="text" id="pres_chances" value="Coracao">
             </div>
         </div>
 
         <div class="flex-row">
             <div class="flex-col">
-                <label style="color: #ff4757;">Comprar +1 Chance:</label>
-                <input type="text" id="pres_chances" value="Coracao">
-            </div>
-            <div class="flex-col">
                 <label style="color: #2ed573;">Aumentar Tempo:</label>
                 <input type="text" id="pres_tempo" value="Relogio">
+            </div>
+            <div class="flex-col">
+                <label style="color: #9b59b6;">Pular Pergunta:</label>
+                <input type="text" id="pres_pular" value="Aviao">
             </div>
         </div>
     </fieldset>
@@ -254,18 +266,22 @@
                     let c = JSON.parse(cfgStr);
 
                     document.getElementById('tempo_partida').value = c.tempo_partida || 300;
-                    document.getElementById('chances_iniciais').value = c.chances_iniciais || 3;
+                    document.getElementById('chances_iniciais').value = c.chances_iniciais || 100;
                     document.getElementById('segundos_adicionais').value = c.segundos_adicionais || 30;
                     document.getElementById('pres_entrada').value = c.presente_entrada || 'rosa';
-                    document.getElementById('pres_dica').value = c.presente_dica || 'chapeu';
                     document.getElementById('pres_chances').value = c.presente_chances || 'coracao';
                     document.getElementById('pres_tempo').value = c.presente_tempo || 'relogio';
+                    document.getElementById('pres_pular').value = c.presente_pular || 'aviao';
                     document.getElementById('entrar_join').checked = !!c.entrar_por_join;
                     document.getElementById('taps_entrada').value = c.taps_entrada || 0;
 
                     let vol = c.volume_explosao !== undefined ? c.volume_explosao * 100 : 8;
                     document.getElementById('volume_explosao').value = vol;
                     document.getElementById('vol_val').innerText = vol + '%';
+
+                    const zoomPercent = Math.round((c.zoom_level || 1.0) * 100);
+                    if (document.getElementById('zoom_jogo')) document.getElementById('zoom_jogo').value = zoomPercent;
+                    if (document.getElementById('zoom_val')) document.getElementById('zoom_val').innerText = zoomPercent + '%';
 
                     currentBgType = c.bg_type || 'color';
                     currentBgValue = c.bg_value || '#1a1a24';
@@ -285,6 +301,21 @@
                 }
             }
         }, 500);
+
+        // --- LINK OBS ---
+        function atualizarLinkOBS() {
+            let user = localStorage.getItem('rdm_user_tiktok') || localStorage.getItem('rdm_user') || "visitante";
+            let baseURL = window.location.href.replace('Painel_do_Host_2.html', 'index_2.html').split('?')[0];
+            const obsInput = document.getElementById('obs-link');
+            if (obsInput) obsInput.value = `${baseURL}?u=${user}&p=pro`;
+        }
+        atualizarLinkOBS();
+
+        function copiarLinkOBS() {
+            let input = document.getElementById('obs-link');
+            input.select(); document.execCommand("copy");
+            alert("✅ Link copiado! Pode colar no TikTok Live Studio ou OBS.");
+        }
 
         // --- FUNÇÕES DE COMANDO (Agora via LocalStorage) ---
 
@@ -378,15 +409,16 @@
             const config = {
 
                 tempo_partida: parseInt(document.getElementById('tempo_partida').value) || 300,
-                chances_iniciais: parseInt(document.getElementById('chances_iniciais').value) || 3,
+                chances_iniciais: parseInt(document.getElementById('chances_iniciais').value) || 100,
                 segundos_adicionais: parseInt(document.getElementById('segundos_adicionais').value) || 30,
                 presente_entrada: document.getElementById('pres_entrada').value,
-                presente_dica: document.getElementById('pres_dica').value,
                 presente_chances: document.getElementById('pres_chances').value,
                 presente_tempo: document.getElementById('pres_tempo').value,
+                presente_pular: document.getElementById('pres_pular').value,
                 entrar_por_join: document.getElementById('entrar_join').checked,
                 taps_entrada: parseInt(document.getElementById('taps_entrada').value) || 0,
                 volume_explosao: parseInt(document.getElementById('volume_explosao').value) / 100.0,
+                zoom_level: (parseInt(document.getElementById('zoom_jogo').value) || 100) / 100.0,
                 bg_type: currentBgType, bg_value: currentBgValue
             };
 

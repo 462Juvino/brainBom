@@ -29,7 +29,7 @@
         .nivel-dica-tag { background: #3498db; color: white; padding: 4px 20px; border-radius: 20px; font-size: 1rem; font-weight: 900; margin-bottom: 10px; }
         .dica-texto-principal { font-size: 2.2rem; font-weight: 800; text-align: center; max-width: 90%; text-shadow: 0 4px 10px rgba(0,0,0,0.8); }
 
-        .plateia-container { flex: 1; display: flex; flex-wrap: wrap; align-content: flex-start; justify-content: center; gap: 15px; overflow: hidden; }
+        .plateia-container { flex: 1; display: flex; flex-wrap: wrap; align-content: flex-start; justify-content: center; gap: 15px; overflow: hidden; padding: 0 100px; }
         .player-card { width: 100px; display: flex; flex-direction: column; align-items: center; }
         .player-card img { width: 100%; aspect-ratio: 1/1; border-radius: 50%; border: 3px solid #555; object-fit: cover; }
         .player-name { font-size: 0.8rem; font-weight: bold; margin-top: 5px; background: rgba(0,0,0,0.8); padding: 2px 5px; border-radius: 5px; width: 100%; box-sizing: border-box; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -45,6 +45,11 @@
         #top3-overlay { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.95); z-index: 1000; display: none; flex-direction: column; align-items: center; justify-content: center; animation: fadeIn 0.5s forwards; }
         .top3-title { font-size: 4rem; font-weight: 900; color: #f39c12; text-transform: uppercase; margin-bottom: 40px; text-shadow: 0 0 20px #f39c12; }
         .top3-container { display: flex; gap: 40px; align-items: flex-end; justify-content: center; }
+
+        .barra-progresso-wrapper { position: absolute; right: 20px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 15px; z-index: 50; }
+        .barra-progresso-container { width: 40px; height: 60vh; background: rgba(0,0,0,0.8); border: 3px solid #3498db; border-radius: 20px; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; box-shadow: 0 0 15px rgba(52, 152, 219, 0.5); }
+        .barra-progresso-fill { width: 100%; background: linear-gradient(to top, #2ed573, #f39c12); transition: height 0.3s ease; height: 0%; }
+        .barra-progresso-texto { font-weight: bold; color: #f39c12; font-size: 1.2rem; text-shadow: 0 0 5px #000; white-space: nowrap; }
         .podium-item { display: flex; flex-direction: column; align-items: center; }
         .podium-item img { border-radius: 50%; object-fit: cover; border: 5px solid #fff; box-shadow: 0 0 20px rgba(255,255,255,0.5); }
         .podium-1 img { width: 220px; height: 220px; border-color: #f1c40f; box-shadow: 0 0 40px #f1c40f; }
@@ -73,12 +78,20 @@
     </div>
 
     <div id="game-view" class="view-section">
-        <div class="header-game">
-            <div id="global-timer" class="timer-global">00:00</div>
-            <div id="dica-nivel" class="nivel-dica-tag">DICA NÍVEL 1</div>
-            <div id="dica-texto" class="dica-texto-principal">Aguardando início...</div>
+        <div id="game-zoom-area" style="width: 100%; height: 100%; transform-origin: top center; transition: transform 0.2s ease-out; display: flex; flex-direction: column;">
+            <div class="header-game">
+                <div id="global-timer" class="timer-global">00:00</div>
+                <div id="dica-nivel" class="nivel-dica-tag">DICA NÍVEL 1</div>
+                <div id="dica-texto" class="dica-texto-principal">Aguardando início...</div>
+            </div>
+            <div id="plateia" class="plateia-container"></div>
+            <div class="barra-progresso-wrapper">
+                <div class="barra-progresso-container">
+                    <div id="barra-fill" class="barra-progresso-fill"></div>
+                </div>
+                <div class="barra-progresso-texto" id="barra-texto">0 / 100 pts</div>
+            </div>
         </div>
-        <div id="plateia" class="plateia-container"></div>
     </div>
 
     <div id="rank_pontos-view" class="view-section">
@@ -127,8 +140,25 @@
             pergunta_atual: null, nivel_dica_max: 1, nivel_dica_exibir: 1, perguntas_usadas: [],
             tempo_restante: 0, tempo_inicio: 0,
             display_mode: "game", display_periodo: "diario",
-            config: {}, lastCmdTs: 0
+            config: {}, lastCmdTs: 0, pontos_bar: 0
         };
+
+        const METAS_DICAS = [100, 150, 200, 250, 300];
+
+        function adicionarPontosBarra(pontos) {
+            if (!jogo.ativo || !jogo.pergunta_atual) return;
+            if (jogo.nivel_dica_max >= 5) return; // Máximo atingido
+
+            jogo.pontos_bar += pontos;
+            let metaAtual = METAS_DICAS[jogo.nivel_dica_max - 1];
+
+            if (jogo.pontos_bar >= metaAtual) {
+                jogo.pontos_bar -= metaAtual;
+                jogo.nivel_dica_max++;
+                jogo.nivel_dica_exibir = jogo.nivel_dica_max;
+            }
+            atualizarTela();
+        }
 
         // ==========================================
         // 🧠 FASE 2: CARREGADOR AUTOMÁTICO DE PERGUNTAS
@@ -192,6 +222,7 @@
                 if (disponiveis.length === 0) { disponiveis = perguntas_db; jogo.perguntas_usadas = []; }
                 jogo.pergunta_atual = disponiveis[Math.floor(Math.random() * disponiveis.length)];
                 jogo.nivel_dica_max = 1; jogo.nivel_dica_exibir = 1;
+                jogo.pontos_bar = 0; // Zera a barra
                 jogo.perguntas_usadas.push(jogo.pergunta_atual.resposta);
             }
         }
@@ -256,6 +287,11 @@
         function atualizarTela() {
             if (document.getElementById('top3-overlay').style.display === 'flex' || document.getElementById('winner-overlay').style.display === 'flex') return;
 
+            if (jogo.config.zoom_level !== undefined) {
+                const zoomArea = document.getElementById('game-zoom-area');
+                if (zoomArea) zoomArea.style.transform = `scale(${jogo.config.zoom_level})`;
+            }
+
             if (jogo.config.bg_type === 'color') {
                 document.body.style.backgroundImage = 'none'; document.body.style.backgroundColor = jogo.config.bg_value || '#1a1a24';
             } else if (jogo.config.bg_type === 'image') {
@@ -268,13 +304,29 @@
 
             if(jogo.display_mode === 'game') {
                 document.getElementById('global-timer').innerText = formatTime(jogo.tempo_restante);
+
+                const barraFill = document.getElementById('barra-fill');
+                const barraTexto = document.getElementById('barra-texto');
+
                 if (jogo.ativo && jogo.pergunta_atual) {
                     const dicaObj = jogo.pergunta_atual.dicas.find(d => d.nivel === jogo.nivel_dica_exibir);
                     document.getElementById('dica-nivel').innerText = `DICA NÍVEL ${jogo.nivel_dica_exibir} (Abertas: ${jogo.nivel_dica_max})`;
                     document.getElementById('dica-texto').innerText = dicaObj ? dicaObj.dica : "...";
+
+                    if (jogo.nivel_dica_max >= 5) {
+                        if(barraFill) barraFill.style.height = '100%';
+                        if(barraTexto) barraTexto.innerText = "MÁXIMO!";
+                    } else {
+                        let metaAtual = METAS_DICAS[jogo.nivel_dica_max - 1];
+                        let porcentagem = Math.min(100, (jogo.pontos_bar / metaAtual) * 100);
+                        if(barraFill) barraFill.style.height = porcentagem + '%';
+                        if(barraTexto) barraTexto.innerText = `${Math.floor(jogo.pontos_bar)} / ${metaAtual} pts`;
+                    }
                 } else if (!jogo.ativo) {
                     document.getElementById('dica-texto').innerText = "ENVIE UM PRESENTE PARA ENTRAR!";
                     document.getElementById('dica-nivel').innerText = "AGUARDANDO...";
+                    if(barraFill) barraFill.style.height = '0%';
+                    if(barraTexto) barraTexto.innerText = "0 / 100 pts";
                 }
                 renderizarPlateia(jogo.jogadores);
             }
@@ -351,13 +403,19 @@
 
             if (!jogo.ativo && !jogo.iniciando) {
                 if ((evento === "join" || evento === "member") && jogo.config.entrar_por_join) adicionarJogador(nick, avatar_url);
-                if (evento === "like" && jogo.config.taps_entrada > 0) {
-                    let taps = parseInt(dados.likeCount || dados.likes || dados.count || 1);
+            }
+
+            if (evento === "like") {
+                let taps = parseInt(dados.likeCount || dados.likes || dados.count || 1);
+
+                if (!jogo.ativo && !jogo.iniciando && jogo.config.taps_entrada > 0) {
                     if (!jogo.jogadores[nick]) adicionarJogador(nick, avatar_url);
                     jogo.jogadores[nick].taps += taps;
                     if (jogo.jogadores[nick].taps >= jogo.config.taps_entrada && jogo.jogadores[nick].chances === 0) {
                         jogo.jogadores[nick].chances = parseInt(jogo.config.chances_iniciais) || 3;
                     }
+                } else if (jogo.ativo) {
+                    adicionarPontosBarra(taps * 0.02);
                 }
             }
 
@@ -365,27 +423,50 @@
                 let pres = (dados.giftName || dados.name || "").toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
                 let cfg = jogo.config;
                 let c_ent = (cfg.presente_entrada || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-                let c_dica = (cfg.presente_dica || "").toLowerCase().replace(/[^a-z0-9]/g, "");
                 let c_chances = (cfg.presente_chances || "").toLowerCase().replace(/[^a-z0-9]/g, "");
                 let c_tempo = (cfg.presente_tempo || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+                let c_pular = (cfg.presente_pular || "").toLowerCase().replace(/[^a-z0-9]/g, "");
 
-                jogo.cache_presentes = jogo.cache_presentes || {};
-                let agora = Date.now(); let chave = nick + "-" + pres;
-                if (jogo.cache_presentes[chave] && (agora - jogo.cache_presentes[chave] < 1500)) return;
-                jogo.cache_presentes[chave] = agora;
+                let qtd_combo = parseInt(dados.repeatCount || dados.giftCount || dados.count || 1);
+                let diamondCount = parseInt(dados.diamondCount || 1);
+                let agora = Date.now();
+
+                if (!jogo.jogadores[nick]) adicionarJogador(nick, avatar_url);
+                if (!jogo.jogadores[nick].last_gift_times) {
+                    jogo.jogadores[nick].last_gift_times = {};
+                    jogo.jogadores[nick].gift_counts = {};
+                }
+
+                let ultimo_tempo = jogo.jogadores[nick].last_gift_times[pres] || 0;
+                let last_count = (agora - ultimo_tempo > 5000) ? 0 : (jogo.jogadores[nick].gift_counts[pres] || 0);
+
+                if (qtd_combo <= last_count) return;
+                let acoes = qtd_combo - last_count;
+
+                jogo.jogadores[nick].last_gift_times[pres] = agora;
+                jogo.jogadores[nick].gift_counts[pres] = qtd_combo;
+
+                let presente_valido = false;
 
                 if ((pres === c_ent) || (c_ent.includes("rosa") && pres.includes("rosa"))) {
-                    if (!jogo.jogadores[nick]) adicionarJogador(nick, avatar_url);
-                } else if (pres === c_chances && jogo.jogadores[nick]) {
-                    jogo.jogadores[nick].chances += 1;
-                } else if (jogo.ativo) {
-                    if (pres === c_dica && jogo.nivel_dica_max < 5) {
-                        jogo.nivel_dica_max++; jogo.nivel_dica_exibir = jogo.nivel_dica_max;
-                    } else if (pres === c_tempo) {
-                        jogo.tempo_restante += parseInt(cfg.segundos_adicionais) || 30;
-                    }
+                    presente_valido = true;
+                } else if (pres === c_chances) {
+                    jogo.jogadores[nick].chances += acoes;
+                    presente_valido = true;
+                } else if (jogo.ativo && pres === c_tempo) {
+                    jogo.tempo_restante += (parseInt(cfg.segundos_adicionais) || 30) * acoes;
+                    presente_valido = true;
+                } else if (jogo.ativo && pres === c_pular) {
+                    sortear_pergunta();
+                    presente_valido = true;
                 }
-                atualizarTela();
+
+                if (jogo.ativo && pres !== c_pular) {
+                    let pontosPresente = (diamondCount * acoes) * 5;
+                    adicionarPontosBarra(pontosPresente);
+                }
+
+                if(presente_valido) atualizarTela();
             }
 
             if (evento === "chat" && jogo.ativo && jogo.pergunta_atual) {
@@ -452,10 +533,19 @@
                     if (cmd.action === 'update_bg') { atualizarConfig(); atualizarTela(); }
                     if (cmd.action === 'restaurar_fundo_vencedor' && jogo.ultimo_vencedor_avatar) { jogo.config.bg_type = 'image'; jogo.config.bg_value = jogo.ultimo_vencedor_avatar; atualizarTela(); }
                     if (cmd.action === 'start_game' && Object.keys(jogo.jogadores).length > 0 && !jogo.ativo && !jogo.iniciando) iniciarComContagem();
-                    if (cmd.action === 'add_player' && !jogo.jogadores[cmd.value]) {
-                        obterAvatarRusso(cmd.value, null).then(img => adicionarJogador(cmd.value, img));
+                    if (cmd.action === 'add_player') {
+                        let nickLimpo = cmd.value.trim();
+                        if (!jogo.jogadores[nickLimpo]) {
+                            adicionarJogador(nickLimpo, `https://api.dicebear.com/7.x/bottts/svg?seed=${nickLimpo}`);
+                            obterAvatarRusso(nickLimpo, null).then(img => {
+                                if (jogo.jogadores[nickLimpo]) { jogo.jogadores[nickLimpo].avatar = img; atualizarTela(); }
+                            });
+                        }
                     }
-                    if (cmd.action === 'remove_player' && jogo.jogadores[cmd.value]) { delete jogo.jogadores[cmd.value]; atualizarTela(); }
+                    if (cmd.action === 'remove_player') {
+                        let nickLimpo = cmd.value.trim();
+                        if (jogo.jogadores[nickLimpo]) { delete jogo.jogadores[nickLimpo]; atualizarTela(); }
+                    }
                 }
             }
 
