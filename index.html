@@ -147,16 +147,20 @@
 
         function adicionarPontosBarra(pontos) {
             if (!jogo.ativo || !jogo.pergunta_atual) return;
-            if (jogo.nivel_dica_max >= 5) return; // Máximo atingido
 
             jogo.pontos_bar += pontos;
-            let metaAtual = METAS_DICAS[jogo.nivel_dica_max - 1];
 
-            if (jogo.pontos_bar >= metaAtual) {
-                jogo.pontos_bar -= metaAtual;
+            // Usamos 'while' para garantir que transborde múltiplos níveis de uma vez se os pontos forem muitos!
+            while (jogo.nivel_dica_max < 5 && jogo.pontos_bar >= METAS_DICAS[jogo.nivel_dica_max - 1]) {
+                jogo.pontos_bar -= METAS_DICAS[jogo.nivel_dica_max - 1];
                 jogo.nivel_dica_max++;
                 jogo.nivel_dica_exibir = jogo.nivel_dica_max;
             }
+
+            if (jogo.nivel_dica_max >= 5) {
+                jogo.pontos_bar = 0; // Trava a barra quando atinge a última dica
+            }
+
             atualizarTela();
         }
 
@@ -415,7 +419,7 @@
                         jogo.jogadores[nick].chances = parseInt(jogo.config.chances_iniciais) || 3;
                     }
                 } else if (jogo.ativo) {
-                    adicionarPontosBarra(taps * 0.02);
+                    adicionarPontosBarra(taps * 0.1);
                 }
             }
 
@@ -462,7 +466,7 @@
                 }
 
                 if (jogo.ativo && pres !== c_pular) {
-                    let pontosPresente = (diamondCount * acoes) * 5;
+                    let pontosPresente = acoes * 5; // Cada presente do combo conta exatamente 5 pontos
                     adicionarPontosBarra(pontosPresente);
                 }
 
